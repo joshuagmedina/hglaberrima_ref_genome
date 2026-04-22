@@ -1,0 +1,81 @@
+---
+title: "Ref Genome Figures"
+author: "Joshua G. Medina-Feliciano"
+date: "2024-06-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 01. Libraries
+
+```{r}
+
+library(circlize)
+
+```
+
+
+```{r}
+
+hg_scaffolds <- data.frame(
+  scaffold_number = paste0("chr", 1:23),
+  start = rep(0, 23),
+  end = c(
+    73859680, 73465181, 63362893, 60059772, 58764909, 57816776, 57335482,
+    54653623, 53414668, 53254338, 50931644, 50198168, 49499594, 46129365,
+    44503915, 42371529, 41861919, 41220690, 40663036, 38869669, 38351717,
+    34956720, 34536024
+  )
+)
+
+genes_bed <- read.table("Hglab.final.filtered.bed", head = FALSE, stringsAsFactors = FALSE)
+colnames(genes_bed) <- c("chr", "start", "end", "gene")
+
+
+classII_te <- read.table("Hglab_classII_te.bed", head = FALSE, stringsAsFactors = FALSE)
+colnames(classII_te) <- c("chr", "start", "end", "gene")
+
+classI_te <- read.table("Hglab_classI_te.bed", head = FALSE, stringsAsFactors = FALSE)
+colnames(classI_te) <- c("chr", "start", "end", "gene")
+
+```
+
+
+```{r}
+
+# Define colors for each chromosome
+chromosome_colors <- c(
+  "#662a25", "#8bc7db", "#75d945", "#da5824", "#789f95", "#3f4922",
+  "#ce50c9", "#6a8f31", "#faf5f6", "#d4dcef", "#c73c44", "#d7c1b0",
+  "#74423d", "#dfd7e1", "#cc99cb", "#FF808040", "#e5eac5", "#ad703c",
+  "#d14185", "#c73c44", "#da699e", "#d7c1b1", "#eef0f2"
+)
+
+
+circos.par(start.degree = 90)
+circos.genomicInitialize(hg_scaffolds, plotType = c("axis", "labels"), labels.cex = 1.2)
+
+# Add a track with colors for each chromosome
+circos.track(
+  ylim = c(0, 1),
+  bg.col = chromosome_colors,
+  bg.border = NA,
+  track.height = 0.05,
+)
+
+circos.genomicDensity(genes_bed, col = "#FF000080", track.height = 0.1, window.size = 500000, border = NA, bg.border = NA)
+circos.genomicDensity(classI_te, col = "#0000FF80", track.height = 0.1, window.size = 500000, border = NA, bg.border = NA)
+circos.genomicDensity(classII_te, col = "#ff9248", track.height = 0.1, window.size = 500000, border = NA, bg.border = NA)
+
+```
+
+```{r}
+
+circos.clear()
+dev.off()
+
+```
+

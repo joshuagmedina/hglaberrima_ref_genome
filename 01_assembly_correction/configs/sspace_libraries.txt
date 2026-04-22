@@ -1,0 +1,9 @@
+# SSPACE Standard v3.0 library manifest.
+# Format: <name> <aligner> <R1.fq> <R2.fq> <insert> <err> <orientation>
+# Artificial mate-pair libraries were produced with matemaker v1.2 from
+# the v2.2 draft assembly (Hglab.v2.2.genome.fa) at 3 / 5 / 8 / 20 kb.
+
+lib1 bwa MATES/hglab.v2.2.3000.A.fq  MATES/hglab.v2.2.3000.A.fq   3000 0.25 RF
+lib2 bwa MATES/hglab.v2.2.5000.A.fq  MATES/hglab.v2.2.5000.A.fq   5000 0.25 RF
+lib3 bwa MATES/hglab.v2.2.8000.A.fq  MATES/hglab.v2.2.8000.A.fq   8000 0.25 RF
+lib4 bwa MATES/hglab.v2.2.20000.A.fq MATES/hglab.v2.2.20000.A.fq 20000 0.25 RF

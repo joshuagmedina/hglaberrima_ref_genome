@@ -1,0 +1,660 @@
+---
+title: "MacroSyntR"
+author: "Joshua G. Medina-Feliciano"
+date: "2024-06-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/Users/joshuagmedina/Dropbox/02-PHD_THESIS/07-REF-GENOME-ARTICLE/01-ANALYSES/05-MACROSYNTR/')
+```
+
+# 1. Load Library
+
+```{r}
+
+library(macrosyntR)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+```
+
+# Loading required files
+
+```{r}
+
+# Correct way to read a file in R
+filename <- "Single_copy_orthologs.tsv"
+
+# Check if the file exists and is not empty
+if (file.exists(filename) && file.info(filename)$size > 0) {
+  data <- read.table(file = filename, header = TRUE, sep = "\t")
+  print(data)
+} else {
+  stop("File does not exist or is empty")
+}
+
+```
+
+```{r}
+
+orthologs_file <- "./Single_copy_orthologs.final.tsv"
+bed_files <- c("Hglab.final.bed", "Hleu.final.bed", "Hsca.final.bed")
+
+
+holothuroids_orthologs <- load_orthologs(orthologs_table = orthologs_file,
+                                     bedfiles = bed_files)
+
+
+head(holothuroids_orthologs)
+
+
+```
+
+# Compute linkage groups
+
+```{r}
+
+# compute significance :
+holothuroids_macrosynteny_df <- compute_macrosynteny(holothuroids_orthologs)
+head(holothuroids_macrosynteny_df)
+
+```
+
+```{r, out.width = c('300px','300px')}
+
+plot_oxford_grid(holothuroids_orthologs,
+                 sp1_label = "Hglab",
+                 sp2_label = "Hleu")
+
+```
+
+```{r}
+
+plot_macrosynteny(holothuroids_macrosynteny_df,
+                  sp1_label = "Hglab",
+                  sp2_label = "Hleu")
+
+```
+
+```{r}
+
+plot_chord_diagram(holothuroids_orthologs,
+                   species_labels = c("Hglab","Hleu", "Hsca"),
+                   color_by = "LGs", reorder_chromosomes = TRUE, label_size = 4) +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+
+# Vector of IDs to be replaced
+ids_to_replace <- c("CM055961.1", "CM055962.1", "CM055963.1", "CM055964.1", "CM055965.1",
+                    "CM055966.1", "CM055967.1", "CM055968.1", "CM055969.1", "CM055970.1",
+                    "CM055971.1", "CM055972.1", "CM055973.1", "CM055974.1", "CM055975.1",
+                    "CM055976.1", "CM055977.1", "CM055978.1", "CM055979.1", "CM055980.1",
+                    "CM055981.1", "CM055982.1", "CM055983.1")
+
+# Vector of new IDs
+new_ids <- as.character(1:length(ids_to_replace))
+
+# Create a named vector for replacement
+replacement_map <- setNames(new_ids, ids_to_replace)
+
+# Ensure sp2.Chr is a factor
+holothuroids_orthologs$sp2.Chr <- factor(holothuroids_orthologs$sp2.Chr)
+
+# Replace specified factor levels with the new IDs
+levels(holothuroids_orthologs$sp2.Chr) <- sapply(levels(holothuroids_orthologs$sp2.Chr), function(x) {
+  if (x %in% names(replacement_map)) {
+    replacement_map[[x]]
+  } else {
+    x
+  }
+})
+
+# Verify the changes
+print(levels(holothuroids_orthologs$sp2.Chr))
+
+levels(holothuroids_orthologs$sp1.Chr) <- stringr::str_replace(levels(holothuroids_orthologs$sp1.Chr),"Hglab_","")
+levels(holothuroids_orthologs$sp3.Chr) <- stringr::str_replace(levels(holothuroids_orthologs$sp3.Chr),"chr_","")
+
+```
+
+```{r}
+
+
+holothuroids_orthologs <- reorder_macrosynteny(
+  holothuroids_orthologs,
+  pvalue_threshold = 0.001,
+  keep_only_significant = TRUE,
+  keep_sp1_raw_order = FALSE
+)
+
+
+plot_chord_diagram(holothuroids_orthologs,
+                   species_labels = c("Hglab","Hleu", "Hsca"),
+                   color_by = "LGs", reorder_chromosomes = TRUE, label_size = 4) +
+  theme(legend.position = "none")
+
+
+```
+
+# A. japonicus and H. leucospilota
+
+```{r}
+
+cukes_orthologs_file <- "./00-DATA/03-ORTHOFINDER-AJAP/Orthogroups/Single_copy_orthologs_cukes.final.tsv"
+cukes_bed_files <- c("Ajap.final.bed","Hglab.final.bed", "Hleu.final.bed")
+
+
+cukes_orthologs <- load_orthologs(orthologs_table = cukes_orthologs_file,
+                                     bedfiles = cukes_bed_files)
+
+
+head(cukes_orthologs)
+
+
+```
+
+```{r}
+
+plot_chord_diagram(cukes_orthologs,
+                   species_labels = c("Ajapo","Hglab", "Hleuc"),
+                   color_by = "LGs", reorder_chromosomes = TRUE, label_size = 2) +
+  theme(legend.position = "none")
+
+```
+
+# A. japonicus 2023 and H. leucospilota
+
+```{r}
+
+cukes_v2_orthologs_file <- "./00-DATA/04-ORTHOFINDER-AJAP2023/Orthogroups/Single_copy_orthologs_cukes.v2.final.tsv"
+cukes_v2_bed_files <- c("Ajap2023.final.bed","Hglab.final.bed", "Hleu.final.bed")
+
+
+cukes_v2_orthologs <- load_orthologs(orthologs_table = cukes_v2_orthologs_file,
+                                     bedfiles = cukes_v2_bed_files)
+
+
+head(cukes_v2_orthologs)
+
+
+```
+
+```{r}
+
+
+
+cukes_v2_orthologs <- reorder_macrosynteny(
+  cukes_v2_orthologs,
+  pvalue_threshold = 0.001,
+  keep_only_significant = TRUE,
+  keep_sp1_raw_order = FALSE
+)
+
+plot_chord_diagram(cukes_v2_orthologs,
+                   species_labels = c("Ajapo","Hglab", "Hleuc"),
+                   color_by = "LGs", reorder_chromosomes = TRUE, label_size = 2) +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+
+# Vector of IDs to be replaced
+ids_to_replace <- c("CM055961.1", "CM055962.1", "CM055963.1", "CM055964.1", "CM055965.1",
+                    "CM055966.1", "CM055967.1", "CM055968.1", "CM055969.1", "CM055970.1",
+                    "CM055971.1", "CM055972.1", "CM055973.1", "CM055974.1", "CM055975.1",
+                    "CM055976.1", "CM055977.1", "CM055978.1", "CM055979.1", "CM055980.1",
+                    "CM055981.1", "CM055982.1", "CM055983.1")
+
+# Vector of new IDs
+new_ids <- as.character(1:length(ids_to_replace))
+
+# Create a named vector for replacement
+replacement_map <- setNames(new_ids, ids_to_replace)
+
+# Ensure sp2.Chr is a factor
+cukes_v2_orthologs$sp3.Chr <- factor(cukes_v2_orthologs$sp3.Chr)
+
+# Replace specified factor levels with the new IDs
+levels(cukes_v2_orthologs$sp3.Chr) <- sapply(levels(cukes_v2_orthologs$sp3.Chr), function(x) {
+  if (x %in% names(replacement_map)) {
+    replacement_map[[x]]
+  } else {
+    x
+  }
+})
+
+# Verify the changes
+print(levels(cukes_v2_orthologs$sp3.Chr))
+
+levels(cukes_v2_orthologs$sp1.Chr) <- stringr::str_replace(levels(cukes_v2_orthologs$sp1.Chr),"Chr","")
+levels(cukes_v2_orthologs$sp2.Chr) <- stringr::str_replace(levels(cukes_v2_orthologs$sp2.Chr),"Hglab_","")
+
+```
+
+```{r}
+
+plot_chord_diagram(cukes_v2_orthologs,
+                   species_labels = c("Ajapo","Hglab", "Hleuc"),
+                   color_by = "LGs", reorder_chromosomes = TRUE, label_size = 2) +
+  theme(legend.position = "none")
+
+
+```
+
+## Make subset of Hox containing scaffolds
+
+```{r}
+
+head(cukes_v2_orthologs)
+
+# select only the orthologs falling in the chromosomes of interest and plot: 
+cukes_hox_subset<- subset(cukes_v2_orthologs, 
+                          sp1.Chr %in% c("10") & sp2.Chr %in% c("10") & sp3.Chr %in% c("9"))
+
+plot_chord_diagram(cukes_hox_subset,
+                   species_labels = c("Ajapo","Hglab", "Hleuc"), label_size = 2) +
+  theme(legend.position = "none")
+
+
+plot_oxford_grid(cukes_hox_subset,
+                 sp1_label = "Ajapo",
+                 sp2_label = "Hglab")
+
+
+
+
+# Ensure the subset is not empty
+if (nrow(cukes_hox_subset) == 0) {
+  stop("The subset data is empty. Please check your filtering criteria.")
+} else {
+  print("Subset data created successfully")
+  print(head(cukes_hox_subset))
+}
+
+# Attempt to plot if the subset is valid
+if (nrow(cukes_hox_subset) > 0) {
+  plot_chord_diagram(cukes_hox_subset,
+                     species_labels = c("Ajapo", "Hglab", "Hleuc"), label_size = 2) +
+    theme(legend.position = "none")
+}
+
+```
+
+# Genome Lengths Comparisons
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
+
+```
+
+```{r}
+
+chr_lengths <- read.table("00-DATA/cukes_chr_lengths.tsv", sep="\t", header=TRUE, stringsAsFactors=FALSE, quote="")
+
+chr_lengths <- chr_lengths %>% arrange(Chr) %>%
+  mutate(Chr = factor(Chr, levels = 1:23))
+
+print(head(chr_lengths))
+
+```
+
+```{r}
+
+ggplot(chr_lengths, aes(x=Chr, y=Length, fill = Species)) +
+  geom_bar(stat="identity", position = "dodge") + #coord_flip() +
+  labs(title="",
+       x="Chromosome",
+       y="Scaffold Length (bp)") +
+  scale_fill_brewer(palette = "Dark2") +
+  theme_bw() +
+  theme(
+    axis.title = element_text(size = 14, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 12, color = "black"), 
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.line.x = element_blank(),
+    axis.line = element_line(size = 0.5),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    strip.placement = "outside"
+    ) + 
+  facet_grid(~ Chr, scales = "free_x", space = "free_x", switch = "x")
+
+
+```
+
+```{r}
+
+# Assuming 'chr_lengths' is your data frame
+chr_lengths$Length_Mb <- chr_lengths$Length / 1e6
+
+# Update the ggplot code
+total_scaffold_lengths_plot <- ggplot(chr_lengths, aes(x=Chr, y=Length_Mb, fill = Species)) +
+  geom_bar(stat="identity", position = position_dodge(width = 0.9), width = 0.7, alpha = 0.8) + 
+  labs(title="",
+       x="Chromosome",
+       y="Scaffold Length (Mb)") +
+  scale_fill_manual(values = c("H. glaberrima" = "#E69F00", "H. leucospilota" = "#56B4E9", "A. japonicus" = "#009E73")) +
+  theme_bw() +
+  theme(
+    axis.title.y = element_text(size = 14, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 12, color = "black"), 
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.line.x = element_blank(),
+    axis.line = element_line(size = 0.5),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    legend.text = element_text(face = "italic"),
+    legend.position = "none",
+    panel.spacing = unit(1, "lines")  # Increase padding between bars
+    ) + 
+  facet_grid(~ Chr, scales = "free_x", space = "free_x", switch = "x") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)))  # Ensure y-axis starts at 
+
+total_scaffold_lengths_plot
+
+
+```
+
+# Calculating intergenic lengths
+
+```{r}
+
+
+hglab_gff <- read.table("00-DATA/05-GFF/Hglab.augustus.gff3", sep="\t", header=FALSE, stringsAsFactors=FALSE, quote="")
+colnames(hglab_gff) <- c("seqid", "source", "type", "start", "end", "score", "strand", "phase", "attributes")
+
+hleuc_gff <- read.table("00-DATA/05-GFF/Hleuc.gff3", sep="\t", header=FALSE, stringsAsFactors=FALSE, quote="")
+colnames(hleuc_gff) <- c("seqid", "source", "type", "start", "end", "score", "strand", "phase", "attributes")
+
+ajapo_gff <- read.table("00-DATA/05-GFF/Ajap.2023.gff3", sep="\t", header=FALSE, stringsAsFactors=FALSE, quote="")
+colnames(ajapo_gff) <- c("seqid", "source", "type", "start", "end", "score", "strand", "phase", "attributes")
+
+
+```
+
+## Filter for the top scaffolds
+
+```{r}
+
+# Specify the scaffolds to filter
+hglab_main_scaffolds <- paste0("Hglab_", 1:23)
+hleuc_main_scaffolds <- c("CM055961.1", "CM055962.1", "CM055963.1",
+                          "CM055964.1", "CM055965.1",
+                      "CM055966.1", "CM055967.1", 
+                      "CM055968.1", "CM055969.1", "CM055970.1",
+                      "CM055971.1", "CM055972.1", "CM055973.1", 
+                      "CM055974.1", "CM055975.1",
+                      "CM055976.1", "CM055977.1", "CM055978", 
+                      "CM055979.1", "CM055980.1",
+                      "CM055981.1", "CM055982.1", "CM055983.1")
+ajap_main_scaffolds <- paste0("Chr", 1:23)
+
+# Apply filtering
+hglab_gff <- hglab_gff %>% filter(seqid %in% hglab_main_scaffolds)
+hleuc_gff <- hleuc_gff %>% filter(seqid %in% hleuc_main_scaffolds)
+ajapo_gff <- ajapo_gff %>% filter(seqid %in% ajap_main_scaffolds)
+
+```
+
+
+```{r}
+
+
+hglab_genes <- hglab_gff[hglab_gff$type == "gene", c("seqid", "start", "end")]
+hleuc_genes <- hleuc_gff[hleuc_gff$type == "gene", c("seqid", "start", "end")]
+ajapo_genes <- ajapo_gff[ajapo_gff$type == "gene", c("seqid", "start", "end")]
+
+hglab_genes <- hglab_genes[order(hglab_genes$seqid, hglab_genes$start),]
+hleuc_genes <- hleuc_genes[order(hleuc_genes$seqid, hleuc_genes$start),]
+ajapo_genes <- ajapo_genes[order(ajapo_genes$seqid, ajapo_genes$start),]
+
+```
+
+
+```{r}
+
+
+hglab_main_scaffolds <- paste0("Hglab_", 1:23)
+hg_main_scaffold_length <- c(
+    73859680, 73465181, 63362893, 60059772, 58764909, 57816776, 57335482,
+    54653623, 53414668, 53254338, 50931644, 50198168, 49499594, 46129365,
+    44503915, 42371529, 41861919, 41220690, 40663036, 38869669, 38351717,
+    34956720, 34536024
+)
+
+scaffold_lengths_hglab <- setNames(hg_main_scaffold_length, hglab_main_scaffolds)
+
+
+
+hleuc_main_scaffolds <- c("CM055961.1", "CM055962.1", "CM055963.1",
+                          "CM055964.1", "CM055965.1",
+                      "CM055966.1", "CM055967.1", 
+                      "CM055968.1", "CM055969.1", "CM055970.1",
+                      "CM055971.1", "CM055972.1", "CM055973.1", 
+                      "CM055974.1", "CM055975.1",
+                      "CM055976.1", "CM055977.1", "CM055978", 
+                      "CM055979.1", "CM055980.1",
+                      "CM055981.1", "CM055982.1", "CM055983.1")
+
+hl_main_scaffold_length <- c(
+  103884622, 78383619, 75826135, 66458584, 63770678, 60200511, 59080634,
+  58244725, 57262800, 56655025, 56107593, 55552326, 54668412, 54133417,
+  52798442, 51894831, 49263487, 45726692, 44962100, 44013693, 43734104,
+  42322790, 39178348
+  )
+
+scaffold_lengths_hleuc <- setNames(hl_main_scaffold_length, hleuc_main_scaffolds)
+
+
+ajap_main_scaffolds <- paste0("Chr", 1:23)
+aj_main_scaffold_length <- c(
+    46042199, 43016746, 37464776, 37207079, 35493775, 34621101, 32564002,
+    32433329, 31432100, 29647521, 29313318, 28441223, 27981011, 26897543,
+    26795855, 26785162, 24479007, 21652200, 21377983, 20397903, 20008199,
+    18957574, 18212455
+)
+
+scaffold_lengths_ajap <- setNames(aj_main_scaffold_length, ajap_main_scaffolds)
+
+```
+
+
+```{r}
+
+hglab_genes_integenic <- hglab_genes %>%
+  mutate(gene_length = end - start + 1) %>%  # Calculate gene length
+  group_by(seqid) %>%  # Group by scaffold ID
+  summarise(
+    total_gene_length = sum(gene_length),  # Sum gene lengths per scaffold
+    .groups = 'drop'  # Drop the grouping
+  )
+hglab_genes_integenic
+
+hg_scaffold_lengths_df <- data.frame(
+  seqid = names(scaffold_lengths_hglab),
+  total_scaffold_length = scaffold_lengths_hglab,
+  stringsAsFactors = FALSE
+)
+
+# Merge scaffold lengths with gene lengths
+hglab_genes_integenic <- hg_scaffold_lengths_df %>%
+  left_join(hglab_genes_integenic, by = "seqid") %>%
+  mutate(
+    intergenic_length = total_scaffold_length - total_gene_length
+  ) %>%
+  select(seqid, total_gene_length, intergenic_length, total_scaffold_length)
+
+# Display the results
+print(hglab_genes_integenic)
+
+hglab_genes_integenic <- hglab_genes_integenic %>%
+  mutate(
+    intergenic_percentage = (intergenic_length / total_scaffold_length) * 100
+  )
+
+
+
+hglab_genes_integenic <- hglab_genes_integenic %>%
+  mutate(Chr = 1:n())
+
+hglab_genes_integenic
+```
+
+```{r}
+
+hleuc_genes_integenic <- hleuc_genes %>%
+  mutate(gene_length = end - start + 1) %>%  # Calculate gene length
+  group_by(seqid) %>%  # Group by scaffold ID
+  summarise(
+    total_gene_length = sum(gene_length),  # Sum gene lengths per scaffold
+    .groups = 'drop'  # Drop the grouping
+  )
+hleuc_genes_integenic
+
+hl_scaffold_lengths_df <- data.frame(
+  seqid = names(scaffold_lengths_hleuc),
+  total_scaffold_length = scaffold_lengths_hleuc,
+  stringsAsFactors = FALSE
+)
+
+# Merge scaffold lengths with gene lengths
+hleuc_genes_integenic <- hl_scaffold_lengths_df %>%
+  left_join(hleuc_genes_integenic, by = "seqid") %>%
+  mutate(
+    intergenic_length = total_scaffold_length - total_gene_length
+  ) %>%
+  select(seqid, total_gene_length, intergenic_length, total_scaffold_length)
+
+# Display the results
+print(hleuc_genes_integenic)
+
+
+hleuc_genes_integenic <- hleuc_genes_integenic %>%
+  mutate(
+    intergenic_percentage = (intergenic_length / total_scaffold_length) * 100
+  )
+
+
+hleuc_genes_integenic <- hleuc_genes_integenic %>%
+  mutate(Chr = 1:n())
+
+hleuc_genes_integenic
+
+```
+
+```{r}
+
+ajapo_genes_integenic <- ajapo_genes %>%
+  mutate(gene_length = end - start + 1) %>%  # Calculate gene length
+  group_by(seqid) %>%  # Group by scaffold ID
+  summarise(
+    total_gene_length = sum(gene_length),  # Sum gene lengths per scaffold
+    .groups = 'drop'  # Drop the grouping
+  )
+ajapo_genes_integenic
+
+aj_scaffold_lengths_df <- data.frame(
+  seqid = names(scaffold_lengths_ajap),
+  total_scaffold_length = scaffold_lengths_ajap,
+  stringsAsFactors = FALSE
+)
+
+# Merge scaffold lengths with gene lengths
+ajapo_genes_integenic <- aj_scaffold_lengths_df %>%
+  left_join(ajapo_genes_integenic, by = "seqid") %>%
+  mutate(
+    intergenic_length = total_scaffold_length - total_gene_length
+  ) %>%
+  select(seqid, total_gene_length, intergenic_length, total_scaffold_length)
+
+# Display the results
+print(ajapo_genes_integenic)
+
+
+ajapo_genes_integenic <- ajapo_genes_integenic %>%
+  mutate(
+    intergenic_percentage = (intergenic_length / total_scaffold_length) * 100
+  )
+
+
+ajapo_genes_integenic <- ajapo_genes_integenic %>%
+  mutate(Chr = 1:n())
+
+ajapo_genes_integenic
+
+```
+
+
+```{r}
+
+# Add a species column to each dataframe
+hglab_genes_integenic <- hglab_genes_integenic %>%
+  mutate(Species = "H. glaberrima")
+
+hleuc_genes_integenic <- hleuc_genes_integenic %>%
+  mutate(Species = "H. leucospilota")
+
+ajapo_genes_integenic <- ajapo_genes_integenic %>%
+  mutate(Species = "A. japonicus")
+
+
+# Combine the dataframes
+intergenic_combined_df <- bind_rows(hglab_genes_integenic, hleuc_genes_integenic, ajapo_genes_integenic)
+
+# Convert intergenic_length to Megabases (Mb)
+intergenic_combined_df$Intergenic_Length_Mb <- intergenic_combined_df$intergenic_length / 1e6
+
+```
+
+
+```{r}
+
+total_intergenic_plot <- ggplot(intergenic_combined_df, aes(x = Chr, y = intergenic_percentage, fill = Species)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.7, alpha = 0.8) +
+  labs(title = "",
+       x = "Chromosome",
+       y = "Intergenic Region (%)") +
+  scale_fill_manual(values = c("H. glaberrima" = "#E69F00", "H. leucospilota" = "#56B4E9", "A. japonicus" = "#009E73")) +
+  theme_bw() +
+  theme(
+    axis.title = element_text(size = 14, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 12, color = "black"),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.line.x = element_blank(),
+    axis.line = element_line(size = 0.5),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.text = element_text(face = "italic"),
+    panel.spacing = unit(1, "lines"),
+    legend.position = "bottom") +
+  guides(fill = guide_legend(nrow = 1, override.aes = list(size = 5))) +
+  facet_grid(~ Chr, scales = "free_x", space = "free_x", switch = "x") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)))  # Adjust the y-axis to start at 0
+
+total_intergenic_plot
+
+```
+
+
+```{r}
+
+composition_comparative <- total_scaffold_lengths_plot / total_intergenic_plot
+composition_comparative <- composition_comparative + plot_annotation(tag_level = "A")
+composition_comparative
+
+```
+

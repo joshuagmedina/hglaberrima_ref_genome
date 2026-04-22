@@ -1,0 +1,1438 @@
+---
+title: "TE CLOSEST GENES"
+author: "Joshua G. Medina-Feliciano"
+date: "2024-06-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# LOADING LIBRARY
+
+```{r}
+
+library(ggrepel)
+library(patchwork)
+library(dplyr)
+
+
+# Read the TSV file into a data frame without header
+genes_10k <- read.delim("01_DISTANCE_10K/10k_mapped2trxpt.tsv", header = FALSE)
+colnames(genes_10k) <- c("genome_pred_id", "Trinity")
+genes_5k <- read.delim("02_DISTANCE_5K/5k_mapped2trxpt.tsv", header = FALSE)
+colnames(genes_5k) <- c("genome_pred_id", "Trinity")
+genes_2k <- read.delim("03_DISTANCE_2K/2k_mapped2trxpt.tsv", header = FALSE)
+colnames(genes_2k) <- c("genome_pred_id", "Trinity")
+genes_adjacent <- read.delim("adjacentGenes_mapped2trxpt.tsv", header = FALSE)
+colnames(genes_adjacent) <- c("genome_pred_id", "Trinity")
+
+# Read the CSV files into data frames with headers
+hpe12 <- read.csv("00_EXPRESSION/HPE_12.csv", header = TRUE, row.names = 1)
+dpe1 <- read.csv("00_EXPRESSION/DPE_1.csv", header = TRUE, row.names = 1)
+dpe3 <- read.csv("00_EXPRESSION/DPE_3.csv", header = TRUE, row.names = 1)
+dpe7 <- read.csv("00_EXPRESSION/DPE_7.csv", header = TRUE, row.names = 1)
+dpe14 <- read.csv("00_EXPRESSION/DPE_14.csv", header = TRUE, row.names = 1)
+dpe14a <- read.csv("00_EXPRESSION/DPE_14_A.csv", header = TRUE, row.names = 1)
+dpe14p <- read.csv("00_EXPRESSION/DPE_14_P.csv", header = TRUE, row.names = 1)
+dpe21 <- read.csv("00_EXPRESSION/DPE_21.csv", header = TRUE)
+
+```
+
+
+
+```{r}
+
+# Extract the IDs from the second column of the TSV file
+trxpts_10k_ids <- genes_10k$Trinity
+
+# Define a function to filter each CSV data frame with partial matching
+filter_csv <- function(df, ids) {
+  # Extract the part of the Trinity ID without the _i part
+  df$Trinity_short <- sub("_i.*", "", df$Trinity)
+  ids_short <- sub("_i.*", "", ids)
+  
+  # Perform the filtering with partial matching
+  df_filtered <- df[df$Trinity_short %in% ids_short & df$padj < 0.05 & df$log2FoldChange >= 2, ]
+  
+  # Remove the temporary Trinity_short column
+  df_filtered$Trinity_short <- NULL
+  
+  return(df_filtered)
+}
+
+# # Define a function to filter each CSV data frame
+# filter_csv <- function(df, ids) {
+#   df_filtered <- df[df$Trinity %in% ids & df$padj < 0.05 & df$log2FoldChange >= 2, ]
+#   return(df_filtered)
+# }
+
+```
+
+
+
+
+## 10K
+
+```{r}
+
+# Apply the filter function to each CSV data frame
+hpe12_filtered <- filter_csv(hpe12, trxpts_10k_ids)
+dpe1_filtered <- filter_csv(dpe1, trxpts_10k_ids)
+dpe3_filtered <- filter_csv(dpe3, trxpts_10k_ids)
+dpe7_filtered <- filter_csv(dpe7, trxpts_10k_ids)
+dpe14_filtered <- filter_csv(dpe14, trxpts_10k_ids)
+dpe14a_filtered <- filter_csv(dpe14a, trxpts_10k_ids)
+dpe14p_filtered <- filter_csv(dpe14p, trxpts_10k_ids)
+dpe21_filtered <- filter_csv(dpe21, trxpts_10k_ids)
+
+#DROP NA ROWS
+
+# Define a function to drop rows with NA in all columns
+drop_na_rows <- function(df) {
+  df[rowSums(is.na(df)) != ncol(df), ]
+}
+
+# Apply this function to each filtered data frame
+hpe12_filtered <- drop_na_rows(hpe12_filtered)
+dpe1_filtered <- drop_na_rows(dpe1_filtered)
+dpe3_filtered <- drop_na_rows(dpe3_filtered)
+dpe7_filtered <- drop_na_rows(dpe7_filtered)
+dpe14_filtered <- drop_na_rows(dpe14_filtered)
+dpe14a_filtered <- drop_na_rows(dpe14a_filtered)
+dpe14p_filtered <- drop_na_rows(dpe14p_filtered)
+dpe21_filtered <- drop_na_rows(dpe21_filtered)
+
+
+```
+
+
+
+```{r}
+
+
+# List of data frame names as strings
+df_10k <- c(
+  'hpe12_filtered', 'dpe1_filtered', 'dpe3_filtered', 'dpe7_filtered',
+  'dpe14_filtered', 'dpe14a_filtered', 'dpe14p_filtered', 'dpe21_filtered')
+
+# Loop through each data frame name and perform the join operation
+for (name in df_10k) {
+  # Get the data frame by name
+  df <- get(name)
+  
+  # Perform the inner join with genes_10k
+  df <- inner_join(df, genes_10k, by = "Trinity")
+  
+  # Assign the updated data frame back to its original name
+  assign(name, df)
+}
+
+```
+
+
+
+
+```{r}
+
+# Add a day column to each filtered data frame
+hpe12_filtered$Day <- "HPE12"
+dpe1_filtered$Day <- "DPE1"
+dpe3_filtered$Day <- "DPE3"
+dpe7_filtered$Day <- "DPE7"
+dpe14_filtered$Day <- "DPE14"
+dpe14a_filtered$Day <- "DPE14a"
+dpe14p_filtered$Day <- "DPE14p"
+dpe21_filtered$Day <- "DPE21"
+
+# Select the relevant columns
+hpe12_filtered <- hpe12_filtered[, c("Trinity", "log2FoldChange", "padj", "Day")]
+dpe1_filtered <- dpe1_filtered[, c("Trinity", "log2FoldChange", "padj", "Day")]
+dpe3_filtered <- dpe3_filtered[, c("Trinity", "log2FoldChange", "padj", "Day")]
+dpe7_filtered <- dpe7_filtered[, c("Trinity", "log2FoldChange", "padj", "Day")]
+dpe14_filtered <- dpe14_filtered[, c("Trinity", "log2FoldChange", "padj", "Day")]
+dpe14a_filtered <- dpe14a_filtered[, c("Trinity", "log2FoldChange", "padj", "Day")]
+dpe14p_filtered <- dpe14p_filtered[, c("Trinity", "log2FoldChange", "padj", "Day")]
+dpe21_filtered <- dpe21_filtered[, c("Trinity", "log2FoldChange", "padj", "Day")]
+
+
+
+# Combine the data frames into one
+combined_df <- rbind(hpe12_filtered, dpe1_filtered, dpe3_filtered, dpe7_filtered, 
+                     dpe14_filtered, dpe14a_filtered, dpe14p_filtered, dpe21_filtered)
+
+# Load ggplot2 for plotting
+library(ggplot2)
+
+# Create the jitter plot with labels for log2FoldChange > 10
+ggplot(combined_df, aes(x = Day, y = log2FoldChange)) +
+  geom_jitter(width = 0.2, height = 0) +
+  geom_text(aes(label = ifelse(log2FoldChange > 7, Trinity, '')), 
+            hjust = 0, vjust = 0, size = 3, check_overlap = TRUE) +
+  labs(title = "Gene Expression Jitter Plot",
+       x = "Day of Expression") +
+  theme_minimal()
+
+```
+
+
+# 5K
+
+
+```{r}
+
+# Extract the IDs from the second column of the TSV file
+trxpts_5k_ids <- genes_5k$Trinity
+
+# Apply the filter function to each CSV data frame
+hpe12_5k_filtered <- filter_csv(hpe12, trxpts_5k_ids)
+dpe1_5k_filtered <- filter_csv(dpe1, trxpts_5k_ids)
+dpe3_5k_filtered <- filter_csv(dpe3, trxpts_5k_ids)
+dpe7_5k_filtered <- filter_csv(dpe7, trxpts_5k_ids)
+dpe14_5k_filtered <- filter_csv(dpe14, trxpts_5k_ids)
+dpe14a_5k_filtered <- filter_csv(dpe14a, trxpts_5k_ids)
+dpe14p_5k_filtered <- filter_csv(dpe14p, trxpts_5k_ids)
+dpe21_5k_filtered <- filter_csv(dpe21, trxpts_5k_ids)
+
+#DROP NA ROWS
+
+# Apply this function to each filtered data frame
+hpe12_5k_filtered <- drop_na_rows(hpe12_5k_filtered)
+dpe1_5k_filtered <- drop_na_rows(dpe1_5k_filtered)
+dpe3_5k_filtered <- drop_na_rows(dpe3_5k_filtered)
+dpe7_5k_filtered <- drop_na_rows(dpe7_5k_filtered)
+dpe14_5k_filtered <- drop_na_rows(dpe14_5k_filtered)
+dpe14a_5k_filtered <- drop_na_rows(dpe14a_5k_filtered)
+dpe14p_5k_filtered <- drop_na_rows(dpe14p_5k_filtered)
+dpe21_5k_filtered <- drop_na_rows(dpe21_5k_filtered)
+
+
+```
+
+
+# 2K
+
+
+```{r}
+
+# Extract the IDs from the second column of the TSV file
+trxpts_2k_ids <- genes_2k$Trinity
+
+# Apply the filter function to each CSV data frame
+hpe12_2k_filtered <- filter_csv(hpe12, trxpts_2k_ids)
+dpe1_2k_filtered <- filter_csv(dpe1, trxpts_2k_ids)
+dpe3_2k_filtered <- filter_csv(dpe3, trxpts_2k_ids)
+dpe7_2k_filtered <- filter_csv(dpe7, trxpts_2k_ids)
+dpe14_2k_filtered <- filter_csv(dpe14, trxpts_2k_ids)
+dpe14a_2k_filtered <- filter_csv(dpe14a, trxpts_2k_ids)
+dpe14p_2k_filtered <- filter_csv(dpe14p, trxpts_2k_ids)
+dpe21_2k_filtered <- filter_csv(dpe21, trxpts_2k_ids)
+
+#DROP NA ROWS
+
+# Apply this function to each filtered data frame
+hpe12_2k_filtered <- drop_na_rows(hpe12_2k_filtered)
+dpe1_2k_filtered <- drop_na_rows(dpe1_2k_filtered)
+dpe3_2k_filtered <- drop_na_rows(dpe3_2k_filtered)
+dpe7_2k_filtered <- drop_na_rows(dpe7_2k_filtered)
+dpe14_2k_filtered <- drop_na_rows(dpe14_2k_filtered)
+dpe14a_2k_filtered <- drop_na_rows(dpe14a_2k_filtered)
+dpe14p_2k_filtered <- drop_na_rows(dpe14p_2k_filtered)
+dpe21_2k_filtered <- drop_na_rows(dpe21_2k_filtered)
+
+
+```
+
+
+# ADJACENT
+
+
+```{r}
+
+# Extract the IDs from the second column of the TSV file
+trxpts_adjacent_ids <- genes_adjacent$Trinity
+
+# Apply the filter function to each CSV data frame
+hpe12_adjacent_filtered <- filter_csv(hpe12, trxpts_adjacent_ids)
+dpe1_adjacent_filtered <- filter_csv(dpe1, trxpts_adjacent_ids)
+dpe3_adjacent_filtered <- filter_csv(dpe3, trxpts_adjacent_ids)
+dpe7_adjacent_filtered <- filter_csv(dpe7, trxpts_adjacent_ids)
+dpe14_adjacent_filtered <- filter_csv(dpe14, trxpts_adjacent_ids)
+dpe14a_adjacent_filtered <- filter_csv(dpe14a, trxpts_adjacent_ids)
+dpe14p_adjacent_filtered <- filter_csv(dpe14p, trxpts_adjacent_ids)
+dpe21_adjacent_filtered <- filter_csv(dpe21, trxpts_adjacent_ids)
+
+#DROP NA ROWS
+
+# Apply this function to each filtered data frame
+hpe12_adjacent_filtered <- drop_na_rows(hpe12_adjacent_filtered)
+dpe1_adjacent_filtered <- drop_na_rows(dpe1_adjacent_filtered)
+dpe3_adjacent_filtered <- drop_na_rows(dpe3_adjacent_filtered)
+dpe7_adjacent_filtered <- drop_na_rows(dpe7_adjacent_filtered)
+dpe14_adjacent_filtered <- drop_na_rows(dpe14_adjacent_filtered)
+dpe14a_adjacent_filtered <- drop_na_rows(dpe14a_adjacent_filtered)
+dpe14p_adjacent_filtered <- drop_na_rows(dpe14p_adjacent_filtered)
+dpe21_adjacent_filtered <- drop_na_rows(dpe21_adjacent_filtered)
+
+
+```
+
+
+## MAPPING TO GENE SYMBOLS
+
+```{r}
+
+library(readr)
+library(dplyr)
+
+hsap_blastp.df <- read_delim(
+  file = "/Users/joshuagmedina/Dropbox/01-DEVNEURO-LAB/34-scRNA-seq/08-SCRNA-HGLABv4/00_REFS/02_HUMAN_NCBI/augustus_hints_w_utr.v4.human_ncbi.map.tsv", 
+  delim = "\t", 
+  col_names = FALSE)
+
+colnames(hsap_blastp.df) <- c("qseqid", "product_accession")
+
+
+```
+
+
+```{r}
+
+human_ncbi.metadata <- read_delim(
+  file = "/Users/joshuagmedina/Dropbox/02-PHD_THESIS/07-REF-GENOME-ARTICLE/01-ANALYSES/00-DATA/03-REFGENOME_V1_FUNCTIONAL_ANNOT/02-FUNCTIONAL_ANNOT_REF_HUMANS/00-REF/GCF_000001405.40_GRCh38.p14_feature_table.txt", 
+  delim = "\t", 
+  col_names = TRUE)
+
+head(human_ncbi.metadata)
+
+```
+
+```{r}
+
+human_ncbi.metadata_subset <- human_ncbi.metadata %>% filter(class == "with_protein") %>% dplyr::select(product_accession, symbol)
+
+head(human_ncbi.metadata_subset)
+
+```
+
+```{r}
+
+hsap_blastp.df <- hsap_blastp.df[!duplicated(hsap_blastp.df$qseqid), ]
+
+hsap_mapping_df_tmp <- inner_join(hsap_blastp.df, human_ncbi.metadata_subset, by = "product_accession")
+hasap_geneID_mapping_df <- hsap_mapping_df_tmp %>% dplyr::select(qseqid, symbol)
+
+head(hasap_geneID_mapping_df)
+
+```
+
+
+
+
+```{r}
+
+
+hsap_mapping_df_tmp <- inner_join(hsap_blastp.df, human_ncbi.metadata_subset, by = "product_accession")
+colnames(hsap_mapping_df_tmp) <- c("genome_pred_id", "product_accession", "symbol")
+
+```
+
+ 
+# MAPPING TO DF DATA
+
+## 10K
+
+```{r}
+
+# Define the function
+merge_and_fill <- function(df_A, df_B) {
+  result <- left_join(df_A, df_B, by = "genome_pred_id")
+  
+  result <- result %>%
+    mutate(product_accession = ifelse(is.na(product_accession), genome_pred_id, product_accession),
+           symbol = ifelse(is.na(symbol), genome_pred_id, symbol))
+  
+  return(result)
+}
+
+hpe12_filtered <- merge_and_fill(hpe12_filtered, hsap_mapping_df_tmp)
+dpe1_filtered <- merge_and_fill(dpe1_filtered, hsap_mapping_df_tmp)
+dpe3_filtered <- merge_and_fill(dpe3_filtered, hsap_mapping_df_tmp)
+dpe7_filtered <- merge_and_fill(dpe7_filtered, hsap_mapping_df_tmp)
+dpe14_filtered <- merge_and_fill(dpe14_filtered, hsap_mapping_df_tmp)
+dpe14a_filtered <- merge_and_fill(dpe14a_filtered, hsap_mapping_df_tmp)
+dpe14p_filtered <- merge_and_fill(dpe14p_filtered, hsap_mapping_df_tmp)
+dpe21_filtered <- merge_and_fill(dpe21_filtered, hsap_mapping_df_tmp)
+
+
+
+```
+
+
+```{r}
+
+
+
+# Add a day column to each filtered data frame
+hpe12_filtered$Day <- "HPE12"
+dpe1_filtered$Day <- "DPE1"
+dpe3_filtered$Day <- "DPE3"
+dpe7_filtered$Day <- "DPE7"
+dpe14_filtered$Day <- "DPE14"
+dpe14a_filtered$Day <- "DPE14a"
+dpe14p_filtered$Day <- "DPE14p"
+dpe21_filtered$Day <- "DPE21"
+
+# Select the relevant columns
+hpe12_filtered <- hpe12_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe1_filtered <- dpe1_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe3_filtered <- dpe3_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe7_filtered <- dpe7_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe14_filtered <- dpe14_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe14a_filtered <- dpe14a_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe14p_filtered <- dpe14p_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe21_filtered <- dpe21_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+
+# Combine the data frames into one
+dist10k <- rbind(hpe12_filtered, dpe1_filtered, dpe3_filtered, dpe7_filtered, 
+                     dpe14_filtered, dpe14a_filtered, dpe14p_filtered, dpe21_filtered)
+
+
+dist10k_filter <- dist10k[dist10k$log2FoldChange <= 12, ]
+
+# Create the jitter plot with labels for log2FoldChange > 7
+ggplot(dist10k_filter, aes(x = Day, y = log2FoldChange)) +
+  geom_jitter(width = 0.2, height = 0) +
+  geom_text_repel(aes(label = ifelse(log2FoldChange > 5, symbol, '')),
+                  size = 3,
+                  box.padding = 0.35,
+                  point.padding = 0.5,
+                  segment.color = 'grey50') +
+  labs(title = "Gene Expression Jitter Plot",
+       x = "Day of Expression",
+       y = "log2FoldChange") +
+  theme_minimal()
+
+```
+
+## ADJACENT GENES
+
+```{r}
+
+# List of data frame names as strings
+df_adj <- c(
+  'hpe12_adjacent_filtered', 'dpe1_adjacent_filtered', 'dpe3_adjacent_filtered', 'dpe7_adjacent_filtered',
+  'dpe14_adjacent_filtered', 'dpe14a_adjacent_filtered', 'dpe14p_adjacent_filtered', 'dpe21_adjacent_filtered')
+
+# Loop through each data frame name and perform the join operation
+for (name in df_adj) {
+  # Get the data frame by name
+  df <- get(name)
+  
+  # Perform the inner join with genes_10k
+  df <- inner_join(df, genes_adjacent, by = "Trinity")
+  
+  # Assign the updated data frame back to its original name
+  assign(name, df)
+}
+
+
+```
+
+
+
+```{r}
+
+
+hpe12_adjacent_filtered <- merge_and_fill(hpe12_adjacent_filtered, hsap_mapping_df_tmp)
+dpe1_adjacent_filtered <- merge_and_fill(dpe1_adjacent_filtered, hsap_mapping_df_tmp)
+dpe3_adjacent_filtered <- merge_and_fill(dpe3_adjacent_filtered, hsap_mapping_df_tmp)
+dpe7_adjacent_filtered <- merge_and_fill(dpe7_adjacent_filtered, hsap_mapping_df_tmp)
+dpe14_adjacent_filtered <- merge_and_fill(dpe14_adjacent_filtered, hsap_mapping_df_tmp)
+dpe14a_adjacent_filtered <- merge_and_fill(dpe14a_adjacent_filtered, hsap_mapping_df_tmp)
+dpe14p_adjacent_filtered <- merge_and_fill(dpe14p_adjacent_filtered, hsap_mapping_df_tmp)
+dpe21_adjacent_filtered <- merge_and_fill(dpe21_adjacent_filtered, hsap_mapping_df_tmp)
+
+
+
+```
+
+
+```{r}
+
+
+
+# Add a day column to each filtered data frame
+hpe12_adjacent_filtered$Day <- "HPE12"
+dpe1_adjacent_filtered$Day <- "DPE1"
+dpe3_adjacent_filtered$Day <- "DPE3"
+dpe7_adjacent_filtered$Day <- "DPE7"
+dpe14_adjacent_filtered$Day <- "DPE14"
+dpe14a_adjacent_filtered$Day <- "DPE14a"
+dpe14p_adjacent_filtered$Day <- "DPE14p"
+dpe21_adjacent_filtered$Day <- "DPE21"
+
+# Select the relevant columns
+hpe12_adjacent_filtered <- hpe12_adjacent_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe1_adjacent_filtered <- dpe1_adjacent_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe3_adjacent_filtered <- dpe3_adjacent_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe7_adjacent_filtered <- dpe7_adjacent_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe14_adjacent_filtered <- dpe14_adjacent_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe14a_adjacent_filtered <- dpe14a_adjacent_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe14p_adjacent_filtered <- dpe14p_adjacent_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+dpe21_adjacent_filtered <- dpe21_adjacent_filtered[, c("Trinity", "log2FoldChange", "padj", "Day","genome_pred_id", "product_accession", "symbol")]
+
+# Combine the data frames into one
+dist_adj <- rbind(hpe12_adjacent_filtered, dpe1_adjacent_filtered, dpe3_adjacent_filtered, dpe7_adjacent_filtered, 
+                     dpe14_adjacent_filtered, dpe14a_adjacent_filtered, dpe14p_adjacent_filtered, dpe21_adjacent_filtered)
+
+
+dist_adj_filter <- dist_adj[dist_adj$log2FoldChange <= 12, ]
+
+# Define the order of the levels for the Day variable
+reg_order <- c("HPE12", "DPE1", "DPE3", "DPE7", "DPE14", "DPE14a", "DPE14p", "DPE21")
+
+# Convert the Day variable to a factor with the specified levels
+dist_adj_filter$Day <- factor(dist_adj_filter$Day, levels = reg_order)
+
+# Create the jitter plot with labels for log2FoldChange > 7
+ggplot(dist_adj_filter, aes(x = Day, y = log2FoldChange)) +
+  geom_jitter(width = 0.2, height = 0) +
+  geom_text_repel(aes(label = ifelse(log2FoldChange > 5, symbol, '')),
+                  size = 3,
+                  box.padding = 0.35,
+                  point.padding = 0.5,
+                  segment.color = 'grey50') +
+  labs(title = "Gene Expression Jitter Plot",
+       x = "Day of Expression",
+       y = "log2FoldChange") +
+  theme_minimal()
+
+```
+
+
+
+
+## Percentage of total genes identified
+
+```{r}
+
+# List of data frame names as strings
+df_10k <- c(
+  'hpe12_filtered', 'dpe1_filtered', 'dpe3_filtered', 'dpe7_filtered',
+  'dpe14_filtered', 'dpe14a_filtered', 'dpe14p_filtered', 'dpe21_filtered')
+
+# Create a list of data frames
+data_10k <- mget(df_10k)
+
+# Count the number of observations in each data frame
+no_expressed_10k <- sapply(data_10k, nrow)
+
+# Create a summary data frame
+data10k_summary <- data.frame(
+  DataFrame = names(no_expressed_10k),
+  TotalObservations = no_expressed_10k
+)
+
+data10k_summary <- data10k_summary %>%
+  mutate(Percentage_of_Total = (TotalObservations / 14955) * 100)
+
+
+# Recode the values in the DataFrame column
+data10k_summary <- data10k_summary %>%
+  mutate(DataFrame = recode(DataFrame,
+                            'hpe12_filtered' = '12HPE',
+                            'dpe1_filtered' = '1DPE',
+                            'dpe3_filtered' = '3DPE',
+                            'dpe7_filtered' = '7DPE',
+                            'dpe14_filtered' = '14DPE',
+                            'dpe14a_filtered' = '14aDPE',
+                            'dpe14p_filtered' = '14pDPE',
+                            'dpe21_filtered' = '21DPE'))
+
+colnames(data10k_summary) <- c("day_of_regeneration", "upregulated_genes", "percentage_of_total")
+
+
+# Print the summary data frame
+print(data10k_summary)
+
+```
+
+```{r}
+
+# List of data frame names as strings
+df_5k <- c(
+  'hpe12_5k_filtered', 'dpe1_5k_filtered', 'dpe3_5k_filtered', 'dpe7_5k_filtered',
+  'dpe14_5k_filtered', 'dpe14a_5k_filtered', 'dpe14p_5k_filtered', 'dpe21_5k_filtered')
+
+# Create a list of data frames
+data_5k <- mget(df_5k)
+
+# Count the number of observations in each data frame
+no_expressed_5k <- sapply(data_5k, nrow)
+
+# Create a summary data frame
+data5k_summary <- data.frame(
+  DataFrame = names(no_expressed_5k),
+  TotalObservations = no_expressed_5k
+)
+
+data5k_summary <- data5k_summary %>%
+  mutate(Percentage_of_Total = (TotalObservations / 12180) * 100)
+
+
+# Recode the values in the DataFrame column
+data5k_summary <- data5k_summary %>%
+  mutate(DataFrame = recode(DataFrame,
+                            'hpe12_5k_filtered' = '12HPE',
+                            'dpe1_5k_filtered' = '1DPE',
+                            'dpe3_5k_filtered' = '3DPE',
+                            'dpe7_5k_filtered' = '7DPE',
+                            'dpe14_5k_filtered' = '14DPE',
+                            'dpe14a_5k_filtered' = '14aDPE',
+                            'dpe14p_5k_filtered' = '14pDPE',
+                            'dpe21_5k_filtered' = '21DPE'))
+
+colnames(data5k_summary) <- c("day_of_regeneration", "upregulated_genes", "percentage_of_total")
+
+
+# Print the summary data frame
+print(data5k_summary)
+
+```
+
+
+
+```{r}
+
+# List of data frame names as strings
+df_2k <- c(
+  'hpe12_2k_filtered', 'dpe1_2k_filtered', 'dpe3_2k_filtered', 'dpe7_2k_filtered',
+  'dpe14_2k_filtered', 'dpe14a_2k_filtered', 'dpe14p_2k_filtered', 'dpe21_2k_filtered')
+
+# Create a list of data frames
+data_2k <- mget(df_2k)
+
+# Count the number of observations in each data frame
+no_expressed_2k <- sapply(data_2k, nrow)
+
+# Create a summary data frame
+data2k_summary <- data.frame(
+  DataFrame = names(no_expressed_2k),
+  TotalObservations = no_expressed_2k
+)
+
+data2k_summary <- data2k_summary %>%
+  mutate(Percentage_of_Total = (TotalObservations / 10312) * 100)
+
+
+# Recode the values in the DataFrame column
+data2k_summary <- data2k_summary %>%
+  mutate(DataFrame = recode(DataFrame,
+                            'hpe12_2k_filtered' = '12HPE',
+                            'dpe1_2k_filtered' = '1DPE',
+                            'dpe3_2k_filtered' = '3DPE',
+                            'dpe7_2k_filtered' = '7DPE',
+                            'dpe14_2k_filtered' = '14DPE',
+                            'dpe14a_2k_filtered' = '14aDPE',
+                            'dpe14p_2k_filtered' = '14pDPE',
+                            'dpe21_2k_filtered' = '21DPE'))
+
+colnames(data2k_summary) <- c("day_of_regeneration", "upregulated_genes", "percentage_of_total")
+
+
+# Print the summary data frame
+print(data2k_summary)
+
+```
+
+
+
+```{r}
+
+# List of data frame names as strings
+df_adj <- c(
+  'hpe12_adjacent_filtered', 'dpe1_adjacent_filtered', 'dpe3_adjacent_filtered', 'dpe7_adjacent_filtered',
+  'dpe14_adjacent_filtered', 'dpe14a_adjacent_filtered', 'dpe14p_adjacent_filtered', 'dpe21_adjacent_filtered')
+
+# Create a list of data frames
+data_adj <- mget(df_adj)
+
+# Count the number of observations in each data frame
+no_expressed_adj <- sapply(data_adj, nrow)
+
+# Create a summary data frame
+data_adj_summary <- data.frame(
+  DataFrame = names(no_expressed_adj),
+  TotalObservations = no_expressed_adj
+)
+
+data_adj_summary <- data_adj_summary %>%
+  mutate(Percentage_of_Total = (TotalObservations / 12498) * 100)
+
+
+# Recode the values in the DataFrame column
+data_adj_summary <- data_adj_summary %>%
+  mutate(DataFrame = recode(DataFrame,
+                            'hpe12_adjacent_filtered' = '12HPE',
+                            'dpe1_adjacent_filtered' = '1DPE',
+                            'dpe3_adjacent_filtered' = '3DPE',
+                            'dpe7_adjacent_filtered' = '7DPE',
+                            'dpe14_adjacent_filtered' = '14DPE',
+                            'dpe14a_adjacent_filtered' = '14aDPE',
+                            'dpe14p_adjacent_filtered' = '14pDPE',
+                            'dpe21_adjacent_filtered' = '21DPE'))
+
+colnames(data_adj_summary) <- c("day_of_regeneration", "upregulated_genes", "percentage_of_total")
+
+
+# Print the summary data frame
+print(data_adj_summary)
+
+```
+
+
+
+## Percentage of upregulated by distance
+
+```{r}
+
+library(RColorBrewer)
+
+# Add a column to indicate the source of each data frame
+data10k_summary <- data10k_summary %>% mutate(Distance = '10Kb')
+data5k_summary <- data5k_summary %>% mutate(Distance = '5Kb')
+data2k_summary <- data2k_summary %>% mutate(Distance = '2Kb')
+data_adj_summary <- data_adj_summary %>% mutate(Distance = 'Adjacent')
+
+# Combine all data frames
+combined_summary <- bind_rows(data10k_summary, data5k_summary, data2k_summary, data_adj_summary)
+
+# Ensure the 'Day' column is treated as a factor with the correct order if necessary
+combined_summary$day_of_regeneration <- factor(combined_summary$day_of_regeneration, levels = c("12HPE","1DPE", "3DPE", "7DPE", "14DPE", "14aDPE", "14pDPE", "21DPE"))
+combined_summary$Distance <- factor(combined_summary$Distance, levels = c("2Kb","5Kb", "3DPE", "10Kb", "Adjacent"))
+
+# Create the bar plot
+genes_expressed_per_distance <- ggplot(combined_summary, aes(x = day_of_regeneration, y = percentage_of_total, fill = Distance)) +
+  geom_bar(stat = 'identity', position = 'dodge') + scale_fill_brewer(palette = "Paired") + 
+  labs(x = "Day of Regeneration",
+       y = "Percentage of Total",
+       fill = "Distance") +
+  theme_classic() +
+  theme(axis.text = element_text(size = 10, color = "black"),
+        axis.title = element_text(size = 16, color = "black", face = "bold"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 16, face = "bold"),
+        legend.key.size = unit(1.5, "lines")) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+genes_expressed_per_distance
+
+```
+
+
+## Percentage of total genes identified
+
+```{r}
+
+# List of data frame names as strings
+df_10k <- c(
+  'hpe12_filtered', 'dpe1_filtered', 'dpe3_filtered', 'dpe7_filtered',
+  'dpe14_filtered', 'dpe14a_filtered', 'dpe14p_filtered', 'dpe21_filtered')
+
+# Create a list of data frames
+data_10k <- mget(df_10k)
+
+# Count the number of observations in each data frame
+no_expressed_10k <- sapply(data_10k, function(df) n_distinct(df$Trinity))
+
+# Create a summary data frame
+data10k_summary <- data.frame(
+  DataFrame = names(no_expressed_10k),
+  TotalObservations = no_expressed_10k
+)
+
+data10k_summary <- data10k_summary %>%
+  mutate(Percentage_of_Total = (TotalObservations / 14955) * 100)
+
+
+# Recode the values in the DataFrame column
+data10k_summary <- data10k_summary %>%
+  mutate(DataFrame = recode(DataFrame,
+                            'hpe12_filtered' = '12HPE',
+                            'dpe1_filtered' = '1DPE',
+                            'dpe3_filtered' = '3DPE',
+                            'dpe7_filtered' = '7DPE',
+                            'dpe14_filtered' = '14DPE',
+                            'dpe14a_filtered' = '14aDPE',
+                            'dpe14p_filtered' = '14pDPE',
+                            'dpe21_filtered' = '21DPE'))
+
+colnames(data10k_summary) <- c("day_of_regeneration", "upregulated_genes", "percentage_of_total")
+
+
+# Print the summary data frame
+print(data10k_summary)
+
+```
+
+```{r}
+
+# List of data frame names as strings
+df_5k <- c(
+  'hpe12_5k_filtered', 'dpe1_5k_filtered', 'dpe3_5k_filtered', 'dpe7_5k_filtered',
+  'dpe14_5k_filtered', 'dpe14a_5k_filtered', 'dpe14p_5k_filtered', 'dpe21_5k_filtered')
+
+# Create a list of data frames
+data_5k <- mget(df_5k)
+
+# Count the number of observations in each data frame
+no_expressed_5k <- sapply(data_5k, function(df) n_distinct(df$Trinity))
+
+# Create a summary data frame
+data5k_summary <- data.frame(
+  DataFrame = names(no_expressed_5k),
+  TotalObservations = no_expressed_5k
+)
+
+data5k_summary <- data5k_summary %>%
+  mutate(Percentage_of_Total = (TotalObservations / 12180) * 100)
+
+
+# Recode the values in the DataFrame column
+data5k_summary <- data5k_summary %>%
+  mutate(DataFrame = recode(DataFrame,
+                            'hpe12_5k_filtered' = '12HPE',
+                            'dpe1_5k_filtered' = '1DPE',
+                            'dpe3_5k_filtered' = '3DPE',
+                            'dpe7_5k_filtered' = '7DPE',
+                            'dpe14_5k_filtered' = '14DPE',
+                            'dpe14a_5k_filtered' = '14aDPE',
+                            'dpe14p_5k_filtered' = '14pDPE',
+                            'dpe21_5k_filtered' = '21DPE'))
+
+colnames(data5k_summary) <- c("day_of_regeneration", "upregulated_genes", "percentage_of_total")
+
+
+# Print the summary data frame
+print(data5k_summary)
+
+```
+
+
+
+```{r}
+
+# List of data frame names as strings
+df_2k <- c(
+  'hpe12_2k_filtered', 'dpe1_2k_filtered', 'dpe3_2k_filtered', 'dpe7_2k_filtered',
+  'dpe14_2k_filtered', 'dpe14a_2k_filtered', 'dpe14p_2k_filtered', 'dpe21_2k_filtered')
+
+# Create a list of data frames
+data_2k <- mget(df_2k)
+
+# Count the number of observations in each data frame
+no_expressed_2k <- sapply(data_2k, function(df) n_distinct(df$Trinity))
+
+# Create a summary data frame
+data2k_summary <- data.frame(
+  DataFrame = names(no_expressed_2k),
+  TotalObservations = no_expressed_2k
+)
+
+data2k_summary <- data2k_summary %>%
+  mutate(Percentage_of_Total = (TotalObservations / 10312) * 100)
+
+
+# Recode the values in the DataFrame column
+data2k_summary <- data2k_summary %>%
+  mutate(DataFrame = recode(DataFrame,
+                            'hpe12_2k_filtered' = '12HPE',
+                            'dpe1_2k_filtered' = '1DPE',
+                            'dpe3_2k_filtered' = '3DPE',
+                            'dpe7_2k_filtered' = '7DPE',
+                            'dpe14_2k_filtered' = '14DPE',
+                            'dpe14a_2k_filtered' = '14aDPE',
+                            'dpe14p_2k_filtered' = '14pDPE',
+                            'dpe21_2k_filtered' = '21DPE'))
+
+colnames(data2k_summary) <- c("day_of_regeneration", "upregulated_genes", "percentage_of_total")
+
+
+# Print the summary data frame
+print(data2k_summary)
+
+```
+
+
+
+```{r}
+
+# List of data frame names as strings
+df_adj <- c(
+  'hpe12_adjacent_filtered', 'dpe1_adjacent_filtered', 'dpe3_adjacent_filtered', 'dpe7_adjacent_filtered',
+  'dpe14_adjacent_filtered', 'dpe14a_adjacent_filtered', 'dpe14p_adjacent_filtered', 'dpe21_adjacent_filtered')
+
+# Create a list of data frames
+data_adj <- mget(df_adj)
+
+# Count the number of observations in each data frame
+no_expressed_adj <- sapply(data_adj, function(df) n_distinct(df$Trinity))
+
+# Create a summary data frame
+data_adj_summary <- data.frame(
+  DataFrame = names(no_expressed_adj),
+  TotalObservations = no_expressed_adj
+)
+
+data_adj_summary <- data_adj_summary %>%
+  mutate(Percentage_of_Total = (TotalObservations / 12498) * 100)
+
+
+# Recode the values in the DataFrame column
+data_adj_summary <- data_adj_summary %>%
+  mutate(DataFrame = recode(DataFrame,
+                            'hpe12_adjacent_filtered' = '12HPE',
+                            'dpe1_adjacent_filtered' = '1DPE',
+                            'dpe3_adjacent_filtered' = '3DPE',
+                            'dpe7_adjacent_filtered' = '7DPE',
+                            'dpe14_adjacent_filtered' = '14DPE',
+                            'dpe14a_adjacent_filtered' = '14aDPE',
+                            'dpe14p_adjacent_filtered' = '14pDPE',
+                            'dpe21_adjacent_filtered' = '21DPE'))
+
+colnames(data_adj_summary) <- c("day_of_regeneration", "upregulated_genes", "percentage_of_total")
+
+
+# Print the summary data frame
+print(data_adj_summary)
+
+```
+
+
+
+## Percentage of upregulated by distance
+
+```{r}
+
+library(RColorBrewer)
+
+# Add a column to indicate the source of each data frame
+data10k_summary <- data10k_summary %>% mutate(Distance = '10Kb')
+data5k_summary <- data5k_summary %>% mutate(Distance = '5Kb')
+data2k_summary <- data2k_summary %>% mutate(Distance = '2Kb')
+data_adj_summary <- data_adj_summary %>% mutate(Distance = 'Adjacent')
+
+# Combine all data frames
+combined_summary <- bind_rows(data10k_summary, data5k_summary, data2k_summary, data_adj_summary)
+
+# Ensure the 'Day' column is treated as a factor with the correct order if necessary
+combined_summary$day_of_regeneration <- factor(combined_summary$day_of_regeneration, levels = c("12HPE","1DPE", "3DPE", "7DPE", "14DPE", "14aDPE", "14pDPE", "21DPE"))
+combined_summary$Distance <- factor(combined_summary$Distance, levels = c("2Kb","5Kb", "Adjacent", "10Kb"))
+
+# Create the bar plot
+genes_expressed_per_distance <- ggplot(combined_summary, aes(x = day_of_regeneration, y = percentage_of_total, fill = Distance)) +
+  geom_bar(stat = 'identity', position = 'dodge') + scale_fill_brewer(palette = "Paired") + 
+  labs(x = "Day of Regeneration",
+       y = "% of Upregulated Genes",
+       fill = "Distance") +
+  theme_classic() +
+  theme(axis.text = element_text(size = 10, color = "black"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title = element_text(size = 16, color = "black", face = "bold"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 16, face = "bold"),
+        legend.key.size = unit(1.5, "lines")) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+genes_expressed_per_distance
+
+```
+
+
+
+```{r}
+
+library(RColorBrewer)
+
+# Add a column to indicate the source of each data frame
+data10k_summary <- data10k_summary %>% mutate(Distance = '10Kb')
+data5k_summary <- data5k_summary %>% mutate(Distance = '5Kb')
+data2k_summary <- data2k_summary %>% mutate(Distance = '2Kb')
+
+# Combine all data frames
+combined_summary <- bind_rows(data10k_summary, data5k_summary, data2k_summary)
+
+combined_summary <- combined_summary %>%
+  filter(day_of_regeneration %in% c("12HPE", "1DPE", "3DPE", "7DPE", "14DPE", "14aDPE", "14pDPE", "21DPE"))
+
+# Ensure the 'Day' column is treated as a factor with the correct order if necessary
+combined_summary$day_of_regeneration <- factor(combined_summary$day_of_regeneration, levels = c("12HPE","1DPE", "3DPE", "7DPE", "14DPE", "14aDPE", "14pDPE", "21DPE"))
+combined_summary$Distance <- factor(combined_summary$Distance, levels = c("2Kb","5Kb", "10Kb"))
+
+# Create the bar plot
+genes_expressed_per_distance <- ggplot(combined_summary, aes(x = day_of_regeneration, y = percentage_of_total, fill = Distance)) +
+  geom_bar(stat = 'identity', position = 'dodge') + scale_fill_brewer(palette = "Paired") + 
+  labs(x = "Day of Regeneration",
+       y = "% of Upregulated Genes",
+       fill = "Distance") +
+  theme_classic() +
+  theme(axis.text = element_text(size = 10, color = "black"),
+        axis.title = element_text(size = 16, color = "black", face = "bold"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 16, face = "bold"),
+        legend.key.size = unit(1.5, "lines")) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+genes_expressed_per_distance
+
+```
+
+
+
+
+
+
+## Get expression of gypsy elements:
+
+```{r}
+
+library(stringr)
+
+# Read the TSV file into a data frame
+gypsy_ids <- read.delim("mashanov_gypsy_int_trxpt.tsv", header = TRUE)
+
+# Extract the Trinity column
+gypsy_trinity_strings <- gypsy_ids$Trinity
+gypsy_values <- gypsy_ids$Gypsy
+
+# List of data frames to check
+data_frames <- list(hpe12 = hpe12, dpe1 = dpe1, dpe3 = dpe3, dpe7 = dpe7, dpe14 = dpe14, dpe14a = dpe14a, dpe14p = dpe14p, dpe21 = dpe21)
+
+# Function to filter data frames based on exact substring match in Trinity column and add Gypsy values
+filter_by_trinity <- function(df, gypsy_trinity_strings, gypsy_values) {
+  # Initialize an empty data frame to store matched rows
+  matched_df <- data.frame()
+  
+  # Iterate over each trinity string
+  for (i in seq_along(gypsy_trinity_strings)) {
+    # Create a pattern with word boundaries
+    pattern <- paste0(gypsy_trinity_strings[i])
+    
+    # Debugging: Print the pattern to check if it's correct
+    cat("Pattern:", pattern, "\n")
+    
+    # Find rows in the data frame where the Trinity column matches the pattern
+    matches <- df %>% filter(str_detect(Trinity, pattern))
+    
+    # Debugging: Print the number of matches found
+    cat("Number of matches for", gypsy_trinity_strings[i], ":", nrow(matches), "\n")
+    
+    # Add the corresponding Gypsy value to the matches
+    if (nrow(matches) > 0) {
+      matches$Gypsy <- gypsy_values[i]
+      matched_df <- bind_rows(matched_df, matches)
+    }
+  }
+  
+  return(matched_df)
+}
+
+# Apply the function to each data frame and store results in a list
+filtered_data_frames <- lapply(data_frames, filter_by_trinity, gypsy_trinity_strings = gypsy_trinity_strings, gypsy_values = gypsy_values)
+
+```
+
+## Get the most significant for each
+
+
+```{r}
+
+# Function to sort by Gypsy and padj, and keep only the row with the lowest padj for each Gypsy
+sort_and_filter <- function(df) {
+  df %>%
+    arrange(Gypsy, padj) %>%
+    group_by(Gypsy) %>%
+    slice(1) %>%
+    ungroup()
+}
+
+# Apply the sort and filter function to each filtered data frame
+final_filtered_data_frames <- lapply(filtered_data_frames, sort_and_filter)
+
+
+```
+
+## Make a plot
+
+```{r}
+
+# Combine the data frames into a single data frame and add the timepoint column
+combined_df <- bind_rows(
+  lapply(names(final_filtered_data_frames), function(name) {
+    df <- final_filtered_data_frames[[name]]
+    df$timepoint <- strsplit(name, "_")[[1]][1]
+    return(df)
+  })
+)
+
+
+combined_df$timepoint <- factor(combined_df$timepoint, levels = unique(combined_df$timepoint))
+
+# Extract the numeric part of the Gypsy IDs and use it to order the levels
+combined_df <- combined_df %>%
+  mutate(Gypsy_num = as.numeric(str_extract(Gypsy, "\\d+"))) %>%
+  arrange(Gypsy_num) %>%
+  mutate(Gypsy = factor(Gypsy, levels = unique(Gypsy)))
+
+# Remove the temporary numeric column
+combined_df <- combined_df %>% select(-Gypsy_num)
+
+```
+
+```{r}
+
+# Generate the bar plot using ggplot2
+ggplot(combined_df, aes(x = Gypsy, y = log2FoldChange, fill = Gypsy)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ timepoint, scales = "free_x") +
+  labs(title = "Expression of Each Distinct Gypsy Over Regeneration",
+       x = "Gypsy",
+       y = "Expression") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))  # Rotate x-axis labels for better readability
+
+
+```
+
+
+```{r}
+
+ggplot(combined_df, aes(x = timepoint, y = Gypsy, fill = log2FoldChange)) +
+  geom_tile() +
+  scale_fill_gradient(low = "blue", high = "red") +
+  labs(title = "",
+       x = "Time Post Evisceration",
+       y = "Gypsy",
+       fill = "Expression") +
+  theme_classic() +
+  theme(axis.text.x = element_text(vjust = 0.5),
+        axis.line = element_blank(),
+        axis.ticks = element_blank())
+
+
+```
+
+```{r}
+
+# Generate the volcano plot using ggplot2
+ggplot(combined_df, aes(x = log2FoldChange, y = -log10(padj), label = Gypsy)) +
+  geom_point(aes(color = timepoint), alpha = 0.6, size = 2) +
+  geom_text_repel(size = 3, max.overlaps = 10) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(title = "Volcano Plot of Gypsy Expression",
+       x = "Log2 Fold Change",
+       y = "-Log10 Adjusted P-value",
+       color = "Time of Regeneration") +
+  theme_minimal()
+
+
+combined_df <- combined_df %>%
+  mutate(label_color = ifelse(abs(log2FoldChange) <= 2 & (padj >= 0.01 | is.na(padj)), "black", as.character(timepoint)))
+
+
+# Generate the volcano plot using ggplot2
+ggplot(combined_df, aes(x = log2FoldChange, y = -log10(padj), label = Gypsy)) +
+  geom_point(aes(color = label_color), alpha = 0.6, size = 2) +
+  scale_color_manual(values = c("black", RColorBrewer::brewer.pal(n = length(unique(combined_df$timepoint)), name = "Dark2"))) +
+  geom_text_repel(data = combined_df %>% filter(label_color != "black"), 
+                  aes(label = Gypsy, color = "black"), size = 3, max.overlaps = 10) +
+  geom_text_repel(data = combined_df %>% filter(label_color == "black"), 
+                  aes(label = Gypsy), color = "black", size = 3, max.overlaps = 10) +
+  geom_vline(xintercept = c(-2, 2), linetype = "dashed", color = "grey40") +
+  geom_hline(yintercept = -log10(0.01), linetype = "dashed", color = "grey40") +
+  labs(title = "",
+       x = "Log2 Fold Change",
+       y = "-Log10 Adjusted P-value",
+       color = "Day of Regeneration") +
+  theme_classic() +
+  theme(axis.text = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black", face = "bold"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 16, face = "bold"),
+        legend.key.size = unit(1.5, "lines")) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+
+
+
+volcano_plot_gypsy <- ggplot(combined_df, aes(x = log2FoldChange, y = -log10(padj), label = Gypsy)) +
+  geom_point(aes(color = label_color), alpha = 0.6, size = 2) +
+  scale_color_manual(
+    values = c("black", RColorBrewer::brewer.pal(n = length(unique(combined_df$timepoint)), name = "Dark2")),
+    labels = c("not significant", levels(combined_df$timepoint))
+  ) +
+  geom_text_repel(data = combined_df %>% filter(label_color != "not significant"), 
+                  aes(label = Gypsy), color = "black", size = 3, max.overlaps = 10) +
+  geom_text_repel(data = combined_df %>% filter(label_color == "not significant"), 
+                  aes(label = Gypsy), color = "black", size = 3, max.overlaps = 10) +
+  geom_vline(xintercept = c(-2, 2), linetype = "dashed", color = "grey40") +
+  geom_hline(yintercept = -log10(0.01), linetype = "dashed", color = "grey40") +
+  labs(title = "",
+       x = "Log2 Fold Change",
+       y = "-Log10 Adjusted P-value",
+       color = "Day of Regeneration") +
+  theme_classic() +
+  theme(axis.text = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black", face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12, face = "bold"),
+        legend.key.size = unit(1, "lines")) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+volcano_plot_gypsy
+
+```
+
+
+```{r}
+
+gypsy_expression <- volcano_plot_gypsy + genes_expressed_per_distance
+gypsy_expression <- gypsy_expression + plot_annotation(tag_levels = "A")
+gypsy_expression
+
+```
+
+# Histogram based on distance of adjacent genes.
+
+
+```{r}
+
+adjacent_genes_w_distance <- read.delim("gypsy_edta_closest_genes.tsv", header = FALSE)
+colnames(adjacent_genes_w_distance) <- c("gypsy_scaffold", "gypsy_start","gypsy_end", "gypsy", "empty1", "gypsy_strand", "gene_scaffold", "gene_start", "gene_end", "genome_pred_id", "empty2", "strand", "gene_distance")
+
+
+adjacent_genes_w_distance <- adjacent_genes_w_distance %>%
+  select(genome_pred_id, gene_distance)
+
+```
+
+## DE Data Simplified
+
+```{r}
+
+# Create a function to extract specific columns
+extract_columns <- function(df, columns) {
+  return(df[, columns, drop = FALSE])
+}
+
+# List of data frames (replace with your actual data frames)
+adjacent_expression_df <- list(hpe12_adjacent_filtered, dpe1_adjacent_filtered, dpe3_adjacent_filtered, 
+                    dpe7_adjacent_filtered, dpe14_adjacent_filtered, dpe14a_adjacent_filtered,
+                    dpe14p_adjacent_filtered, dpe21_adjacent_filtered)
+
+# Define the columns to extract
+columns_to_extract <- c("Trinity", "padj", "log2FoldChange")
+
+# Use lapply to apply the function to each data frame
+extracted_data_frames <- lapply(adjacent_expression_df, extract_columns, columns = columns_to_extract)
+
+# Optional: Name the list elements for easier reference
+names(extracted_data_frames) <- c("hpe12_adjacent_exp", "dpe1_adjacent_exp", "dpe3_adjacent_exp",
+                                  "dpe7_adjacent_exp", "dpe14_adjacent_exp", "dpe14a_adjacent_exp",
+                                  "dpe14p_adjacent_exp", "dpe21_adjacent_exp") # Adjust names accordingly
+
+# Print the extracted data frames
+print(extracted_data_frames)
+
+
+```
+
+
+```{r}
+
+# Load necessary library
+#library(dplyr)
+
+# Define a function to join each CSV data frame with partial matching
+join_df <- function(df, ids_df) {
+  # Extract the part of the Trinity ID without the _i part
+  df <- df %>%
+    mutate(Trinity_short = sub("_i.*", "", Trinity))
+  
+  ids_df <- ids_df %>%
+    mutate(Trinity_short = sub("_i.*", "", Trinity))
+  
+  # Perform the join with partial matching
+  df_joined <- df %>%
+    inner_join(ids_df, by = "Trinity_short")
+  
+  # Filter the resulting data frame
+  df_filtered <- df_joined %>%
+    filter(padj < 0.05 & log2FoldChange >= 2)
+  
+  # Remove the temporary Trinity_short column
+  df_filtered <- df_filtered %>%
+    select(-Trinity_short)
+  
+  return(df_filtered)
+}
+
+
+# Apply the function to each data frame in the list
+joined_data_frames <- lapply(extracted_data_frames, join_df, ids_df = genes_adjacent)
+
+# Print the joined and filtered data frames
+head(joined_data_frames)
+
+
+```
+
+```{r}
+
+# Load necessary library
+#library(dplyr)
+
+# Define a function to join each CSV data frame with partial matching
+join_csv <- function(df, ids_df) {
+  # Extract the part of the Trinity ID without the _i part
+  df <- df %>%
+    mutate(Trinity_short = sub("_i.*", "", Trinity))
+  
+  ids_df <- ids_df %>%
+    mutate(Trinity_short = sub("_i.*", "", Trinity))
+  
+  # Perform the join with partial matching
+  df_joined <- df %>%
+    inner_join(ids_df, by = "Trinity_short")
+  
+  # Filter the resulting data frame
+  df_filtered <- df_joined %>%
+    filter(padj < 0.05 & log2FoldChange >= 2)
+  
+  # Remove the temporary Trinity_short column
+  df_filtered <- df_filtered %>%
+    select(-Trinity_short)
+  
+  return(df_filtered)
+}
+
+# Apply the function to each data frame in the list
+joined_data_frames <- lapply(extracted_data_frames, join_csv, ids_df = genes_adjacent)
+
+# Print the joined and filtered data frames
+print(joined_data_frames)
+
+
+```
+
+
+```{r}
+
+# Load necessary library
+#library(dplyr)
+
+# Define a function to join each data frame with gene data frame
+join_with_gene_data <- function(df, gene_df) {
+  # Ensure gene_df has unique genes
+  gene_df <- gene_df %>%
+    distinct(genome_pred_id, .keep_all = TRUE)
+  
+  # Perform the join
+  df_joined <- df %>%
+    inner_join(gene_df, by = c("genome_pred_id"))
+  
+  # Remove duplicates based on genome_pred_id column
+  df_joined <- df_joined %>%
+    distinct(genome_pred_id, .keep_all = TRUE)
+  
+  return(df_joined)
+}
+
+
+# Apply the function to each data frame in the list
+final_adjacent_data_frames <- lapply(joined_data_frames, join_with_gene_data, gene_df = adjacent_genes_w_distance)
+
+# Print the final data frames
+head(final_adjacent_data_frames)
+
+
+```
+
+
+```{r}
+
+for (i in seq_along(final_adjacent_data_frames)) {
+  df_name <- names(final_adjacent_data_frames)[i]
+  identifier <- sub("_.*", "", df_name)
+  final_adjacent_data_frames[[i]] <- final_adjacent_data_frames[[i]] %>%
+    mutate(source_df = identifier)
+}
+
+combined_adjacent_df <- bind_rows(final_adjacent_data_frames)
+
+```
+
+
+```{r}
+
+# Define window size
+window_size <- 2000
+
+# Create distance intervals (bins)
+combined_adjacent_df <- combined_adjacent_df %>%
+  mutate(distance_bin = floor(gene_distance / window_size) * window_size)
+
+# Calculate density of genes in each distance interval for each data frame
+density_data <- combined_adjacent_df %>%
+  group_by(source_df, distance_bin) %>%
+  summarise(gene_count = n(), .groups = 'drop')
+
+
+```
+
+
+```{r}
+
+# Plot the density using ggplot2 as a bar plot
+gene_density_plot <- ggplot(density_data, aes(x = distance_bin, y = gene_count, fill = source_df)) +
+  geom_bar(stat = "identity", position = "stack") + scale_fill_brewer(palette = "Dark2") +
+  labs(
+       x = "Distance (bin)",
+       y = "Density of Genes",
+       fill = "Day of Regeneration") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black", face = "bold"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 16, face = "bold"),
+        legend.key.size = unit(1.5, "lines"),
+        legend.position = "bottom",
+        legend.direction = "horizontal")
+  
+
+```
+
+```{r}
+
+# Plot the density using ggplot2 as a faceted bar plot
+ggplot(density_data, aes(x = distance_bin, y = gene_count, fill = source_df)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ source_df, scales = "free_y") +
+  labs(title = "Gene Density Plot by Source Data Frame",
+       x = "Distance (bin)",
+       y = "Density of Genes") +
+  theme_minimal()
+
+
+```
+
+```{r}
+
+# Combine the top two plots side by side
+top_plots <- volcano_plot_gypsy + genes_expressed_per_distance + plot_layout(ncol = 2)
+
+# Combine the top plots with the bottom plot
+combined_plot <- top_plots / gene_density_plot
+combined_plot <- combined_plot + plot_annotation(tag_levels = "A")
+# Print the combined plot
+print(combined_plot)
+
+```
+

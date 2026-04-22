@@ -1,0 +1,30 @@
+name: hglaberrima_ref_genome
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - biopython
+  - pandas
+  - numpy
+  - pip
+  - perl
+  - minimap2=2.22
+  - samtools
+  - bcftools
+  - mummer4=4.0.0rc1
+  - bwa
+  - bedtools
+  - seqkit
+  - star
+  - stringtie=2.2.1
+  - ragtag
+  - busco=5
+  - mafft=7.480
+  - iqtree=2.3.2
+  - orthofinder=2.5.4
+  - repeatmodeler=2.0.5
+  - repeatmasker=4.1.5
+  - pip:
+    - natsort

@@ -1,0 +1,152 @@
+---
+title: "OrthoFinder Analysis"
+author: "Joshua G. Medina-Feliciano"
+date: "2024-06-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Loading the libraries
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(UpSetR)
+library(ComplexUpset)
+library(tidyr)
+
+```
+
+
+
+```{r}
+
+if (!require("remotes")) {
+  install.packages("remotes")
+}
+remotes::install_github("krassowski/complex-upset")
+
+
+```
+
+# 2. Number of Overlap Orthologs
+
+## 2.1 Loading the data
+
+```{r}
+
+orthogroups_genes <- read.table("03-FINAL-ORTHOFINDER/Orthogroups/Orthogroups.GeneCount.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+head(orthogroups_genes)
+
+```
+
+```{r}
+
+hglab_singlets_orthogroups <- sum(orthogroups_genes$Hglab == 1)
+print(hglab_singlets_orthogroups)
+
+orthogroups_genes_mod <- orthogroups_genes[-1]
+orthogroups_genes_mod <- orthogroups_genes_mod[-12]
+
+hglab_singlets_orthogroups <- sum(orthogroups_genes_mod$Hglab == 1 & rowSums(orthogroups_genes_mod[-which(names(orthogroups_genes_mod) == "Hglab")] == 0) == (ncol(orthogroups_genes_mod) - 1))
+print(hglab_singlets_orthogroups)
+
+
+```
+
+
+```{r}
+
+ortho_binary <- orthogroups_genes %>%
+  select(-Total) %>%
+  mutate(across(-Orthogroup, ~ifelse(. > 0, 1, 0)))
+
+# Display the binary data frame
+print(ortho_binary)
+
+
+```
+
+```{r}
+
+ortho_hglab <- ortho_binary %>%
+  filter(Hglab == 1)
+
+```
+
+
+```{r}
+
+UpSetR::upset(ortho_hglab, sets = colnames(ortho_hglab)[-1], 
+              keep.order = TRUE, main.bar.color = "black", matrix.color="black", order.by = "freq", decreasing = TRUE)
+
+
+```
+
+
+## ComplexUpset
+
+```{r}
+
+ortho_hglab_cu <- ortho_hglab
+
+ortho_hglab_cu <- ortho_hglab_cu %>%
+  rename(
+    Ajapo1 = Ajap2017,
+    Ajapo2 = Ajap2023.aa,
+    Hsapi = Hsapiens,
+    Amexi = Amex,
+    Dreri = Drer,
+    Mmusc = Mmusculus,
+    Plivi = Pliv,
+    Spurp = Spur_5_0,
+    Hleuc = Hleu,
+    Hscab = Hsca
+  )
+
+ortho_hglab_cu[2:12] <- lapply(ortho_hglab_cu[2:12], as.logical)
+ortho_hglab_cu
+
+species_names = colnames(ortho_hglab_cu)[2:12]
+species_names
+
+```
+
+
+```{r}
+
+
+ComplexUpset::upset(ortho_hglab_cu, species_names, 
+                    name='species', width_ratio=0.1,
+                    mode='inclusive_intersection',
+                    base_annotations=list('Size'=(intersection_size(counts=TRUE,
+                                                                    mode='inclusive_intersection'))),
+                    intersections=list('Hglab',
+                                       c('Ajapo2', 'Ajapo1', 
+                                         'Amexi', 'Dreri', 
+                                         'Hglab', 'Hleuc', 'Hsapi', 
+                                         'Hscab', 'Mmusc', 'Plivi','Spurp'),
+                                       c('Hglab', 'Hleuc', 'Hscab'),
+                                       c('Hglab', 'Hleuc', 'Hscab', 'Ajapo2'),
+                                       c('Hglab', 'Hleuc', 'Hscab', 'Ajapo2', 'Plivi', 'Spurp'),
+                                       c('Hglab', 'Ajapo2'),
+                                       c('Hglab', 'Ajapo1'),
+                                       c('Hglab', 'Amexi'),
+                                       c('Hglab', 'Dreri'),
+                                       c('Hglab', 'Hleuc'),
+                                       c('Hglab', 'Hsapi'),
+                                       c('Hglab', 'Hscab'),
+                                       c('Hglab', 'Mmusc'),
+                                       c('Hglab', 'Plivi'),
+                                       c('Hglab', 'Spurp')),
+                    keep_empty_groups=TRUE, 
+                    wrap=TRUE)
+
+
+```
+

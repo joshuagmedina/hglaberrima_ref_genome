@@ -1,0 +1,218 @@
+---
+title: "THAP Seqs Analysis"
+author: "Joshua G. Medina-Feliciano"
+date: "2024-07-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1.0 Libraries
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(RColorBrewer)
+
+
+```
+
+
+# 2.0 Load Data
+
+```{r}
+
+crepe_out_df <- read.csv("CREPE_OUTPUT/H.glaberrima2024_CREPE_df.csv", sep = ',', row.names = 1)
+
+```
+
+# Plot of main 
+
+```{r}
+
+crepe_out_df <- unique(
+        crepe_out_df %>%
+          group_by(accession) %>%
+          summarise(frequency=n(), 
+                    Pfam_DBDs = target_name, 
+                    unique = length(
+                      unique(query_name)
+                    )
+          )
+)
+
+
+
+pfams <- as.vector(ungroup(crepe_out_df) %>% 
+                        select(Pfam_DBDs,unique) %>% 
+                        slice_max(unique, n = 20) %>% 
+                        pull(Pfam_DBDs))
+    
+gg1 <- ggplot(crepe_out_df %>% filter(Pfam_DBDs %in% pfams), aes(reorder(Pfam_DBDs, -unique), unique)) +
+      geom_bar(stat = "identity") +
+      ylab("Unique Proteins") +
+      #xlab("TF Families") +
+      geom_text(size = 9, position = position_stack(), aes(label = unique), vjust = -0.3) + 
+      theme_classic() +
+      scale_y_continuous(expand = expand_scale(mult = c(0, .1))) +
+      theme(axis.text.x=element_text(angle = 45, size = 20, vjust = 1, hjust=1), axis.title.x = element_blank(), 
+            axis.text.y=element_text(size = 15),
+            axis.title.y = element_text(size = 15))
+
+
+gg1
+
+
+```
+
+
+```{r}
+
+# Create a new column for coloring
+crepe_out_df <- crepe_out_df %>%
+  mutate(bar_color = ifelse(Pfam_DBDs == "THAP", "highlight", "normal"))
+
+gg1 <- ggplot(crepe_out_df %>% filter(Pfam_DBDs %in% pfams), aes(reorder(Pfam_DBDs, -unique), unique, fill = bar_color)) +
+  geom_bar(stat = "identity", width = 0.7, position = position_dodge(width = 0.8)) + coord_flip() + 
+  ylab("Number of Genes") +
+  xlab("") +
+  geom_text(size = 5, position = position_stack(), aes(label = unique), hjust = -0.5) + 
+  theme_classic() +
+  scale_y_continuous(breaks = seq(0, max(crepe_out_df$unique, na.rm = TRUE), by = 10), expand = expand_scale(mult = c(0, .1))) +
+  theme(axis.text.x=element_text(size = 12, color = "black"), 
+        axis.text.y=element_text(size = 12, color = "black"),
+        axis.title.x = element_text(size = 14, color = "black", face = "bold"),
+        legend.position = "none") +
+  scale_fill_manual(values = c("highlight" = "red", "normal" = "grey"))
+
+gg1
+
+```
+
+
+```{r}
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+
+# Define the directory containing the CSV files
+crepe_output_directory <- "./01_CREPE_OUTPUT_OTHERS"
+
+# List all CSV files in the directory
+species_crepe_output <- list.files(crepe_output_directory, pattern = "*.csv", full.names = TRUE)
+
+# Define a named vector mapping file names to species names
+# Make sure to use the full base name of the file (without extension) as names
+species_names <- c(
+  "Ajap_CREPE_df" = "A. japonicus",
+  "Ajaponica_CREPE_df" = "A. japonica",
+  "Aplan_CREPE_df" = "A. planci",
+  "Arub_CREPE_df" = "A. rubens",
+  "Celegans_CREPE_df" = "C. elegans",
+  "Dmel_CREPE_df" = "D. melanogaster",
+  "Drerio_CREPE_df" = "D. rerio",
+  "H.glaberrima2024_CREPE_df" = "H. glaberrima",
+  "Hleu_CREPE_df" = "H. leucospilota",
+  "Hsapiens_CREPE_df" = "H. sapiens",
+  "Hsca_CREPE_df" = "H. scabra",
+  "Hvul_CREPE_df" = "H. vulgaris",
+  "Lpic_CREPE_df" = "L. pictus",
+  "Lvar_CREPE_df" = "L. variegatus",
+  "Mmus_CREPE_df" = "M. musculus",
+  "Mnemiopsis_CREPE_df" = "M. leidyi",
+  "Nvec_CREPE_df" = "N. vectensis",
+  "Ovul_CREPE_df" = "O. vulgaris",
+  "Pliv_CREPE_df" = "P. lividus",
+  "Pmin_CREPE_df" = "P. miniata",
+  "Spur_CREPE_df" = "S. purpuratus",
+  "Xlaevis_CREPE_df" = "X. laevis"
+  # Add more mappings as needed
+)
+
+# Function to read, filter, and process each CSV file
+process_file <- function(file) {
+  # Read the CSV file
+  df <- read.csv(file)
+  
+  # Extract the file base name
+  file_base_name <- tools::file_path_sans_ext(basename(file))
+  
+  # Get the species name from the mapping vector
+  species <- species_names[file_base_name]
+  
+  # Filter rows where Pfam_DBDs contains "THAP"
+  df_filtered <- df %>% filter(grepl("THAP", Pfam_DBDs))
+  
+  # Add a column with the species name
+  df_filtered <- df_filtered %>% mutate(species = species)
+  
+  return(df_filtered)
+}
+
+# Apply the function to each file and combine the results into one data frame
+all_crepe_data <- do.call(rbind, lapply(species_crepe_output, process_file))
+
+# Calculate the number of unique query_name entries for each species
+unique_counts <- all_crepe_data %>% 
+  group_by(species) %>% 
+  summarize(unique_query_names = n_distinct(query_name))
+
+
+
+
+unique_counts <- unique_counts %>% 
+  mutate(species = fct_rev(species))
+
+#Mmusculus removing isoforms
+unique_counts[16, "unique_query_names"] <- 7
+#Hsap removing isoforms
+unique_counts[10, "unique_query_names"] <- 12
+#Drerio
+unique_counts[7, "unique_query_names"] <- 74
+#Dmel
+unique_counts[6, "unique_query_names"] <- 9
+#Lvar
+unique_counts[14, "unique_query_names"] <- 85
+#Hydra
+unique_counts[12, "unique_query_names"] <- 179
+#Xlaevis
+unique_counts[22, "unique_query_names"] <- 89
+#Nematostella
+unique_counts[17, "unique_query_names"] <- 17
+
+species_order <- c("H. vulgaris", "X. laevis", "L. variegatus", "D. rerio", "P. miniata", "H. leucospilota",
+                   "H. scabra", "H. glaberrima", "A. rubens", "L. pictus", "A. japonica", "S. purpuratus",
+                   "A. japonicus", "A. planci", "O. vulgaris", "P. lividus", "N. vectensis", "H. sapiens", 
+                   "D. melanogaster", "M. musculus", "C. elegans", "M. leidyi")
+
+
+unique_counts <- unique_counts %>% 
+  mutate(species = factor(species, levels = species_order))
+
+# Add a column for colors
+unique_counts <- unique_counts %>%
+  mutate(color = ifelse(species == "H. glaberrima", "highlight", "normal"))
+
+# Create the bar plot
+all_species_THAPs_plot <- ggplot(unique_counts, aes(x = unique_query_names, y = species, fill = color)) +
+  geom_bar(stat = "identity", width = 0.7, position = position_dodge(width = 0.8)) +
+  geom_text(size = 4, position = position_stack(), aes(label = unique_query_names), hjust = -0.2) +
+  scale_x_continuous(breaks = seq(0, max(unique_counts$unique_query_names, na.rm = TRUE), by = 10), expand = expand_scale(mult = c(0, .1))) +
+  xlab("Number of THAP-containing Genes") +
+  ylab("Species") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black", face = "italic"),
+        legend.position = "none",
+        axis.title = element_text(size = 14, color = "black", face = "bold")) +
+  scale_fill_manual(values = c("highlight" = "red", "normal" = "grey"))
+
+all_species_THAPs_plot
+
+```
+

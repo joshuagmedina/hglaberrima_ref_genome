@@ -1,0 +1,8 @@
+# EVidenceModeler v2.1.0 weights used for the H. glaberrima v4 annotation.
+# Columns: <evidence_type> <source> <weight>
+ABINITIO_PREDICTION	AUGUSTUS	1
+ABINITIO_PREDICTION	GeneMark.hmm	1
+PROTEIN	spur_miniprot	1
+PROTEIN	hleu_miniprot	1
+TRANSCRIPT	assembler-hglab_pasa_v1.sqlite	10
+OTHER_PREDICTION	transdecoder	5

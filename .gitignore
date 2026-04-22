@@ -1,0 +1,31 @@
+# Large data — stored on FigShare, not in the repo
+*.fa
+*.fasta
+*.fa.gz
+*.fasta.gz
+*.fq
+*.fastq
+*.fq.gz
+*.fastq.gz
+*.bam
+*.sam
+*.bai
+*.paf
+*.sqlite
+*.h5
+
+# Pipeline work directories
+work/
+braker/
+pasa_run/
+evm_partitions/
+EDTA_raw/
+RepeatMasker/
+
+# OS / editor
+.DS_Store
+.Rproj.user/
+.Rhistory
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
