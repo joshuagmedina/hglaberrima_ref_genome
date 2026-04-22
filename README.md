@@ -87,4 +87,4 @@ See each section's README for the exact invocation.
 
 ## Contact
 
-Joshua G. Medina-Feliciano — joshuagmedina@gmail.com
+Joshua G. Medina-Feliciano — joshua.medina8@upr.edu
