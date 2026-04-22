@@ -14,13 +14,13 @@
 *.sqlite
 *.h5
 
-# Pipeline work directories
+# Pipeline work directories (output dirs, not the scripts in this repo)
 work/
 braker/
 pasa_run/
 evm_partitions/
 EDTA_raw/
-RepeatMasker/
+RepeatMasker_output/
 
 # OS / editor
 .DS_Store
