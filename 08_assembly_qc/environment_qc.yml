@@ -1,0 +1,38 @@
+# Environment(s) for 08_assembly_qc.
+#
+# NOT merged into ../environment.yml: several of these packages have pins
+# that conflict with each other and with the top-level environment when
+# solved together (see below), so in practice they were installed into
+# separate conda environments per pipeline stage. This file lists everything
+# used; split it into per-stage environments if `mamba env create` fails to
+# solve it as one.
+#
+# Known conflicts encountered:
+#   - blobtoolkit pulls in Python 3.9; a pinned diamond=2.1.9 conflicts with
+#     it on libzlib. Leave diamond unpinned (resolved to 2.2.5).
+#   - r-base=4.3 conflicts with genomescope2=2.0's dependency chain. Leave
+#     r-base unpinned (resolved to 4.2.3) or let genomescope2 pull its own.
+#   - blobtoolkit=4.3.9 does not exist on bioconda; leave blobtoolkit
+#     unpinned (resolved to 4.5.5).
+name: hglab_assembly_qc
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bwa=0.7.18
+  - samtools=1.21
+  - bcftools=1.21
+  - pairtools=1.1.0
+  - pretextmap
+  - pretextsnapshot
+  - meryl=1.4.1
+  - merqury=1.3
+  - genomescope2=2.0
+  - minimap2=2.31
+  - diamond
+  - blobtoolkit
+  - seqtk=1.5
+  - python=3.10
+  - matplotlib
+  - numpy

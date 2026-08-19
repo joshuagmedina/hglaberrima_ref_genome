@@ -36,6 +36,8 @@ hglaberrima_ref_genome/
 ├── 05_gene_families/          # Hox cluster verification, THAP TF cataloguing (CREPE)
 ├── 06_transposons/            # EDTA TE annotation, RepeatMasker, TE-proximal gene analysis
 ├── 07_figures/                # Main-text and supplementary figure scripts (circos, plots)
+├── 08_assembly_qc/            # Assembly QC: Omni-C contact map, k-mer genome size,
+│                              #   heterozygosity, consensus accuracy (QV), contamination screen
 ├── 99_utils/                  # Small FASTA/GFF helpers used across sections
 ├── environment.yml            # Global conda environment (minimap2, samtools, mummer, etc.)
 └── README.md                  # (this file)
@@ -82,6 +84,14 @@ Each numbered folder has its own `README.md` with:
 | FigTree                | v1.4      | tree visualization                         |
 | CREPE                  | see repo  | THAP transcription factor cataloguing      |
 | InterProScan           | ≥5.60     | functional domain annotation               |
+| bwa                    | v0.7.18   | Omni-C / short-read mapping (assembly QC)  |
+| samtools / bcftools    | v1.21     | BAM handling, variant calling (assembly QC)|
+| pairtools              | v1.1.0    | Hi-C pair parsing / dedup (assembly QC)    |
+| PretextMap / PretextSnapshot | v0.1.9 / v0.0.4 | Hi-C contact map (assembly QC)   |
+| meryl / Merqury        | v1.4.1 / v1.3 | k-mer counting, consensus QV (assembly QC) |
+| GenomeScope2           | v2.0      | k-mer genome size / heterozygosity (assembly QC) |
+| DIAMOND                | v2.2.5    | contamination screen (assembly QC)         |
+| BlobToolKit            | v4.5.5    | contamination screen (assembly QC)         |
 
 See each section's README for the exact invocation.
 
